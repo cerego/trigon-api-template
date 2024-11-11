@@ -1,91 +1,106 @@
 
-# TypeScript Project Structure and Testing Guide for REST API Development
+# TypeScript Monorepo Project Structure and Testing Guide for REST API Development with Fastify
 
-This document serves as a reference manual for the dev team, outlining best practices for structuring a new TypeScript-based REST API project. The goal is to maintain clarity, scalability, and easy maintainability. We adopt a modular structure with unit tests placed close to the source files and a parallel `tests` folder for integration and end-to-end testing.
+This document provides a reference for setting up a TypeScript-based monorepo with packages for core API functionality (`core`) and additional functions (`functions`). This monorepo structure promotes code reuse, modularity, and easy maintainability. It includes Fastify as the web framework for handling incoming requests.
 
 ---
 
-## Project Structure Overview
+## Monorepo Structure Overview
 
-Our project is structured to keep each component modular and purpose-driven. All core API code resides in the `src` folder, with a parallel `tests` folder for integration and end-to-end tests.
+In this monorepo, packages are organized under `packages/`, where each package contains its own `src` folder and dependencies managed at the root level. A `tests` folder at the root holds integration and end-to-end tests.
 
 ### Folder Structure
 
 ```plaintext
 project-root
-├── src                     # Core application code
-│   ├── api
-│   │   ├── config          # Configuration files (database, environment, etc.)
-│   │   ├── controllers     # Handle request and response logic
-│   │   ├── domain          # Data models and types
-│   │   │   ├── schemas     # Schema definitions (e.g., for ORMs)
-│   │   │   └── types       # TypeScript interfaces for data models
-│   │   ├── helpers         # Utility functions and reusable code
-│   │   ├── interfaces      # Infrastructure interfaces (e.g., Database, FileRepository)
-│   │   ├── adapters        # Implementations of infrastructure interfaces
-│   │   ├── middlewares     # Middleware for request handling
-│   │   ├── routes          # Route definitions for API endpoints
-│   │   ├── services        # Business logic connecting controllers and models
-│   │   └── validations     # Request validation logic
-├── tests                   # Integration, end-to-end, and system tests
-│   ├── integration         # Integration tests for interactions between components
-│   ├── e2e                 # End-to-end tests for simulating real-world scenarios
-│   └── mocks               # Shared mocks for integration and end-to-end tests
-├── package.json
-├── tsconfig.json
-└── jest.config.js          # Jest config file for managing different test types
+├── packages
+│   ├── core                     # Core API application code
+│   │   ├── src
+│   │   │   ├── config           # Configuration files (database, environment, etc.)
+│   │   │   ├── controllers      # Handle request and response logic
+│   │   │   ├── domain           # Data models and types
+│   │   │   │   ├── schemas      # Schema definitions
+│   │   │   │   └── types        # TypeScript interfaces for data models
+│   │   │   ├── helpers          # Utility functions and reusable code
+│   │   │   ├── interfaces       # Infrastructure interfaces (e.g., Database, FileRepository)
+│   │   │   ├── adapters         # Implementations of infrastructure interfaces
+│   │   │   ├── middlewares      # Middleware for request handling
+│   │   │   ├── routes           # Route definitions for API endpoints
+│   │   │   ├── services         # Business logic connecting controllers and models
+│   │   │   └── validations      # Request validation logic
+│   │   └── app.ts               # Initializes Fastify instance, registers plugins, routes, etc.
+│   └── functions                # Additional functions package
+│       ├── src
+│       │   ├── handlers         # Lambda-style handlers for functions
+│       │   ├── utils            # Utility functions specific to functions package
+│       │   └── config           # Configuration files specific to functions
+│       └── index.ts             # Main entry point for the functions package
+├── tests                        # Integration, end-to-end, and system tests
+│   ├── integration              # Integration tests across packages
+│   ├── e2e                      # End-to-end tests simulating real-world scenarios
+│   └── mocks                    # Shared mocks for integration and end-to-end tests
+├── package.json                 # Root-level package.json for managing workspace dependencies
+└── tsconfig.json                # Root-level TypeScript configuration
 ```
 
 ---
 
-## Detailed Breakdown
+## Package Descriptions
 
-Explanation and purpose of each folder in the project structure, with examples.
+### `core/`
+This package serves as the core API application, including all business logic, controllers, middleware, and infrastructure adapters.
 
-### `config/`
-- **Purpose**: Stores configuration files for application setup (e.g., database connections, environment settings).
-- **Example**: `database.ts` might export a function that sets up and returns a database connection instance based on environment variables.
+- **`app.ts`**: Initializes the Fastify instance, sets up plugins, registers routes, and configures server settings.
 
-### `controllers/`
-- **Purpose**: Handle incoming requests, process them, and return appropriate responses. Controllers are thin, focusing on directing traffic to services and sending responses.
-- **Example**: `user.controller.ts` contains methods like `getUser`, `createUser`, etc., which process HTTP requests and invoke service methods accordingly.
-- **Test Folder**: Each controller has a `tests` subfolder for unit tests verifying controller methods.
+- **Example**:
+  ```typescript
+  import Fastify from 'fastify';
+  import userRoutes from './src/routes/user.routes';
+  
+  const app = Fastify({ logger: true });
+  app.register(userRoutes, { prefix: '/api/users' });
+  
+  export default app;
+  ```
 
-### `domain/`
-Contains data models and types, organized in subfolders:
+### `functions/`
+The `functions` package includes smaller, modular functions that can be used as standalone handlers, e.g., for serverless platforms.
 
-- **Schemas** (`schemas/`): Defines schemas for ORM or database modeling, specifying data structure, validation, and relationships.
-  - **Example**: `User.schema.ts` defines the fields, types, and constraints for the user model in the database.
-- **Types** (`types/`): Holds TypeScript interfaces for data models, ensuring type safety across the application.
-  - **Example**: `User.type.ts` defines `User` interface, describing the structure of user data used in services.
+- **`handlers`**: Contains individual function handlers for specific tasks.
+- **Example**: `handlers/generateReport.ts` could define a function that generates a report, called independently from the core API.
 
-### `helpers/`
-- **Purpose**: Reusable utility functions used across the application, not specific to business logic.
-- **Example**: `formatDate.ts` could contain a utility function for formatting dates consistently.
+### `tests/`
+This folder contains integration, end-to-end, and shared mock tests for validating inter-package interactions.
 
-### `interfaces/`
-- **Purpose**: Define infrastructure interfaces for common functionality, promoting loose coupling and reusability.
-- **Example**: `Database.ts` defines methods for database operations (e.g., `connect`, `disconnect`). Implementations can use this interface to ensure consistent interactions.
+---
 
-### `adapters/`
-- **Purpose**: Implementations of interfaces, adapting the application to specific technologies (e.g., DynamoDB, S3).
-- **Example**: `DynamoDBAdapter.ts` in `adapters/database` provides the implementation for `Database` interface using DynamoDB, while `S3Adapter.ts` implements file storage functionality.
+## Fastify Setup
 
-### `middlewares/`
-- **Purpose**: Custom middleware functions to handle cross-cutting concerns in request handling.
-- **Example**: `auth.middleware.ts` could validate JWT tokens to authenticate requests.
+Fastify is initialized in the **`app.ts`** file within the `core` package, serving as the entry point for the core API application.
 
-### `routes/`
-- **Purpose**: Define API endpoint paths and map them to controller methods, organizing all routes by feature or resource.
-- **Example**: `user.routes.ts` defines all routes related to user operations, such as `/users`, `/users/:id`.
+- **File**: `packages/core/app.ts`
+- **Purpose**: This file creates and configures the Fastify instance, setting up routes, middlewares, and plugins.
+- **Example Configuration**:
+  ```typescript
+  import Fastify from 'fastify';
+  import routes from './src/routes';
 
-### `services/`
-- **Purpose**: Business logic and operations, handling tasks that require data manipulation and processing before reaching the controllers.
-- **Example**: `UserService.ts` might contain `getUserById` or `createUser` methods, orchestrating logic and calling database adapters.
+  const app = Fastify();
 
-### `validations/`
-- **Purpose**: Define request validation schemas for API requests to ensure data integrity and consistency.
-- **Example**: `user.validation.ts` could use a library like Joi to validate fields in user creation requests.
+  // Register routes and middleware
+  app.register(routes);
+
+  // Start server
+  app.listen({ port: 3000 }, (err, address) => {
+    if (err) {
+      app.log.error(err);
+      process.exit(1);
+    }
+    app.log.info(`Server listening at ${address}`);
+  });
+
+  export default app;
+  ```
 
 ---
 
@@ -93,46 +108,84 @@ Contains data models and types, organized in subfolders:
 
 ### In-Source Unit Tests
 
-Each relevant folder within `src/api/` includes a `tests` subfolder for unit tests. The parallel `tests` folder is dedicated to integration and end-to-end tests.
+Each relevant folder within `packages/core/src/` includes a `tests` subfolder for unit tests. This keeps unit tests close to the code they’re testing, ensuring each package remains self-contained.
 
-### Parallel `tests` Folder
+### Global `tests` Folder for Integration and E2E Tests
 
-The `tests` folder, parallel to `src`, is dedicated to higher-level testing, including integration and end-to-end tests.
+The `tests` folder at the root is dedicated to integration and end-to-end tests across packages. This includes shared mocks for consistent and reusable data setups across different packages.
 
-### Example Structure
+### Example Testing Structure
 
 ```plaintext
 tests/
-├── integration         # Integration tests for combined components (e.g., controllers + services)
+├── integration         # Integration tests across multiple packages
 ├── e2e                 # End-to-end tests for full API workflows
 └── mocks               # Shared mocks for integration and E2E tests
 ```
 
-### Test Types
+---
 
-#### Unit Tests
-Validates isolated functionality for each component in `src/api`. Placed within `tests` folders in each subfolder.
+## Installing Dependencies
 
-#### Integration Tests
-Tests how multiple components interact (e.g., controller-to-service communication).
+Since this is a monorepo, dependencies such as TypeScript and Jest can be installed at the root level for shared access across all packages.
 
-#### End-to-End (E2E) Tests
-Validates end-to-end functionality across routes and services, simulating real-world use cases.
+### Installing TypeScript and Jest
 
-#### Mocks
-Centralize mock data and setup for integration and E2E tests.
+1. **Install TypeScript and Jest** at the root level:
+   ```bash
+   npm install --save-dev typescript jest @types/jest ts-jest
+   ```
+
+2. **Configure `tsconfig.json` and `jest.config.js`**:
+   - Each package should have its own `tsconfig.json` extending from a root `tsconfig.json`.
+   - A single global `jest.config.js` can be placed at the root, with optional package-specific configurations if needed.
+
+### Example Root `tsconfig.json`
+
+```json
+{
+  "compilerOptions": {
+    "target": "es2021",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*"]
+    }
+  },
+  "include": ["packages/*/src"]
+}
+```
+
+### Example Global `jest.config.js`
+
+```javascript
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/build/'],
+  moduleFileExtensions: ['ts', 'tsx', 'js'],
+  moduleDirectories: ['node_modules', 'packages'],
+  roots: ['<rootDir>/packages'],
+  coverageDirectory: 'coverage',
+  collectCoverageFrom: ['packages/**/*.{ts,tsx}', '!packages/**/*.d.ts'],
+};
+```
 
 ---
 
 ## Key Best Practices
 
-- Organize code by functionality, keeping each component isolated in purpose.
-- Use interfaces in `interfaces` and implement them in `adapters` for flexibility and testability.
-- Centralize mocks in `tests/mocks` for consistency across tests.
-- Separate unit tests within `src` from integration and E2E tests in the parallel `tests` folder.
+- **Organize Code by Functionality**: Keep components isolated in purpose and organized within each package.
+- **Global Configurations**: Manage shared dependencies and configurations like TypeScript and Jest at the root.
+- **Centralized Tests**: Place integration and end-to-end tests in the global `tests` folder.
+- **Package-Specific Configurations**: Use individual `tsconfig.json` files for package-specific paths and output configurations.
 
 ---
 
 ## Summary
 
-This structure provides a scalable, maintainable approach to building and testing a TypeScript REST API. By separating unit tests from integration and end-to-end tests, this approach ensures clear organization, test isolation, and flexibility as the project grows.
+This monorepo structure provides a scalable, maintainable approach to building and testing a TypeScript REST API with core functionality and additional functions. By organizing packages separately, it ensures clear organization, test isolation, and flexibility as the project grows.

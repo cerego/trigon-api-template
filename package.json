@@ -1,7 +1,15 @@
 {
+  "name": "typescript-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/core",
+    "packages/functions"
+  ],
   "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "build": "npm run build -w core && npm run build -w functions",
+    "test": "npm run test -w core && npm run test -w functions",
+    "start:core": "npm start -w core",
+    "start:functions": "npm start -w functions"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

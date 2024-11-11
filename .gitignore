@@ -1,0 +1,41 @@
+# Node.js
+node_modules/
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+dist/
+build/
+
+# Jest Coverage
+coverage/
+
+# Compiled output
+*.js
+*.d.ts
+*.js.map
+
+# Env files
+.env
+.env.*
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+
+# Editor & IDE Folders
+.vscode/
+.idea/
+
+# Monorepo Specific (e.g., Yarn workspaces)
+.yarn/
+.pnp.*
+
+# Root Workspaces and Lerna (if any)
+packages/*/node_modules/
+packages/*/dist/
+packages/*/build/
+
+# Optional: Ignore global package-lock.json if packages have individual ones
+package-lock.json
