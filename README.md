@@ -1,13 +1,13 @@
 
-# TypeScript Monorepo Project Structure and Testing Guide for REST API Development with Fastify
+# TypeScript Monorepo Project Structure and Testing Guide for REST API Development with Fastify, Prisma, and Zod
 
-This document provides a reference for setting up a TypeScript-based monorepo with packages for core API functionality (`core`) and additional functions (`functions`). This monorepo structure promotes code reuse, modularity, and easy maintainability. It includes Fastify as the web framework for handling incoming requests.
+This document provides a reference for setting up a TypeScript-based monorepo with packages for core API functionality (`core`) and additional functions (`functions`). This structure promotes code reuse, modularity, and maintainability, incorporating **Fastify** for the web framework, **Prisma** for database schema management, **Zod** for input validation, and **TypeScript** for core domain models.
 
 ---
 
 ## Monorepo Structure Overview
 
-In this monorepo, packages are organized under `packages/`, where each package contains its own `src` folder and dependencies managed at the root level. A `tests` folder at the root holds integration and end-to-end tests.
+Packages are organized under `packages/`, where each package has its own `src` folder and dependencies are managed at the root level. A `tests` folder at the root holds integration and end-to-end tests.
 
 ### Folder Structure
 
@@ -15,20 +15,19 @@ In this monorepo, packages are organized under `packages/`, where each package c
 project-root
 ├── packages
 │   ├── core                     # Core API application code
+│   │   ├── prisma               # Prisma database schema and migrations
+│   │   │   ├── schema.prisma    # Database schema definition
+│   │   │   └── migrations/      # Prisma migrations
 │   │   ├── src
-│   │   │   ├── config           # Configuration files (database, environment, etc.)
-│   │   │   ├── controllers      # Handle request and response logic
-│   │   │   ├── domain           # Data models and types
-│   │   │   │   ├── schemas      # Schema definitions
-│   │   │   │   └── types        # TypeScript interfaces for data models
-│   │   │   ├── helpers          # Utility functions and reusable code
-│   │   │   ├── interfaces       # Infrastructure interfaces (e.g., Database, FileRepository)
-│   │   │   ├── adapters         # Implementations of infrastructure interfaces
-│   │   │   ├── middlewares      # Middleware for request handling
-│   │   │   ├── routes           # Route definitions for API endpoints
-│   │   │   ├── services         # Business logic connecting controllers and models
-│   │   │   └── validations      # Request validation logic
-│   │   └── app.ts               # Initializes Fastify instance, registers plugins, routes, etc.
+│   │   │   ├── domain
+│   │   │   │   ├── types        # Core domain models using TypeScript interfaces
+│   │   │   │   │   └── user.types.ts
+│   │   │   ├── controllers
+│   │   │   │   └── user.controller.ts
+│   │   │   ├── validations      # Zod input validation schemas
+│   │   │   │   └── user.validation.ts
+│   │   │   ├── services         # Business logic layer interacting with Prisma
+│   │   └── app.ts               # Fastify app initialization
 │   └── functions                # Additional functions package
 │       ├── src
 │       │   ├── handlers         # Lambda-style handlers for functions
@@ -36,9 +35,6 @@ project-root
 │       │   └── config           # Configuration files specific to functions
 │       └── index.ts             # Main entry point for the functions package
 ├── tests                        # Integration, end-to-end, and system tests
-│   ├── integration              # Integration tests across packages
-│   ├── e2e                      # End-to-end tests simulating real-world scenarios
-│   └── mocks                    # Shared mocks for integration and end-to-end tests
 ├── package.json                 # Root-level package.json for managing workspace dependencies
 └── tsconfig.json                # Root-level TypeScript configuration
 ```
@@ -50,18 +46,42 @@ project-root
 ### `core/`
 This package serves as the core API application, including all business logic, controllers, middleware, and infrastructure adapters.
 
-- **`app.ts`**: Initializes the Fastify instance, sets up plugins, registers routes, and configures server settings.
+- **Prisma Database Schema**: The `prisma` folder contains the database schema (`schema.prisma`) and migrations, defining tables and relationships.
 
-- **Example**:
-  ```typescript
-  import Fastify from 'fastify';
-  import userRoutes from './src/routes/user.routes';
-  
-  const app = Fastify({ logger: true });
-  app.register(userRoutes, { prefix: '/api/users' });
-  
-  export default app;
-  ```
+- **Domain Types**: Defined under `domain/types`, TypeScript interfaces represent the core business logic models.
+
+- **Input Validation with Zod**: Zod schemas are defined in a standalone `validations` folder, keeping input validation centralized and reusable.
+
+- **Example Structure**:
+  - **Prisma Model** (`schema.prisma`):
+    ```prisma
+    model User {
+      id        String   @id @default(uuid())
+      name      String
+      email     String   @unique
+      createdAt DateTime @default(now())
+    }
+    ```
+  - **TypeScript Domain Model** (`user.types.ts`):
+    ```typescript
+    export interface User {
+      id: string;
+      name: string;
+      email: string;
+      createdAt: Date;
+    }
+    ```
+  - **Zod Validation Schema** (`user.validation.ts`):
+    ```typescript
+    import { z } from 'zod';
+
+    export const UserInputSchema = z.object({
+      name: z.string().min(1, "Name is required"),
+      email: z.string().email("Invalid email address"),
+    });
+
+    export type UserInput = z.infer<typeof UserInputSchema>;
+    ```
 
 ### `functions/`
 The `functions` package includes smaller, modular functions that can be used as standalone handlers, e.g., for serverless platforms.
@@ -80,6 +100,7 @@ Fastify is initialized in the **`app.ts`** file within the `core` package, servi
 
 - **File**: `packages/core/app.ts`
 - **Purpose**: This file creates and configures the Fastify instance, setting up routes, middlewares, and plugins.
+
 - **Example Configuration**:
   ```typescript
   import Fastify from 'fastify';
@@ -180,6 +201,10 @@ module.exports = {
 ## Key Best Practices
 
 - **Organize Code by Functionality**: Keep components isolated in purpose and organized within each package.
+- **Database, Domain, and Validation Separation**:
+  - Use **Prisma** for database schema management.
+  - Use **TypeScript** interfaces for core domain models, separate from the database schema.
+  - Use **Zod** for validating input at the controller layer, organized in a dedicated `validations` folder for reusability.
 - **Global Configurations**: Manage shared dependencies and configurations like TypeScript and Jest at the root.
 - **Centralized Tests**: Place integration and end-to-end tests in the global `tests` folder.
 - **Package-Specific Configurations**: Use individual `tsconfig.json` files for package-specific paths and output configurations.
@@ -188,4 +213,4 @@ module.exports = {
 
 ## Summary
 
-This monorepo structure provides a scalable, maintainable approach to building and testing a TypeScript REST API with core functionality and additional functions. By organizing packages separately, it ensures clear organization, test isolation, and flexibility as the project grows.
+This monorepo structure provides a scalable, maintainable approach to building and testing a TypeScript REST API with core functionality and additional functions. By organizing packages separately and utilizing Prisma for database management, TypeScript for domain models, and Zod for validation, this setup ensures clear organization, test isolation, and flexibility as the project grows.
